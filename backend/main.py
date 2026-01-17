@@ -11,7 +11,7 @@ import shutil
 from datetime import datetime
 import json
 
-from ai_engine import InspectionAIEngine
+from ai_engine_vision import InspectionAIEngine  # Google Cloud Vision API
 from pdf_generator import generate_inspection_report
 
 app = FastAPI(title="Restaurant Inspection System")
@@ -134,3 +134,4 @@ async def health_check():
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000, reload=True)
+
