@@ -104,11 +104,19 @@ async function submitInspection() {
     formData.append('floor_prep_image', document.getElementById('floorImage').files[0]); // Same for POC
     formData.append('lighting_image', document.getElementById('lightingImage').files[0]);
 
+
     try {
+        // Add timeout to prevent infinite loading (3 minutes for AI processing)
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 180000); // 180 seconds (3 minutes) timeout
+
         const response = await fetch('https://restaurant-inspection-api.onrender.com/api/inspect', {
             method: 'POST',
-            body: formData
+            body: formData,
+            signal: controller.signal
         });
+
+        clearTimeout(timeoutId);
 
         if (!response.ok) {
             throw new Error('فشل الفحص');
@@ -127,7 +135,15 @@ async function submitInspection() {
     } catch (error) {
         console.error('Error:', error);
         loadingModal.hide();
-        alert('حدث خطأ أثناء الفحص. الرجاء المحاولة مرة أخرى.');
+
+        // Better error messages
+        if (error.name === 'AbortError') {
+            alert('⏱️ استغرق التحليل أكثر من 3 دقائق.\n\n💡 نصيحة: في أول استخدام، الخدمة قد تحتاج وقتاً للتشغيل.\nالرجاء المحاولة مرة أخرى الآن - سيكون أسرع!');
+        } else if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+            alert('❌ فشل الاتصال بالخادم.\n\nالرجاء التحقق من اتصال الإنترنت والمحاولة مرة أخرى.');
+        } else {
+            alert('حدث خطأ أثناء الفحص. الرجاء المحاولة مرة أخرى.');
+        }
     }
 }
 
