@@ -188,7 +188,7 @@ function setupEventListeners() {
     // Download PDF
     document.getElementById('downloadPDFBtn').addEventListener('click', () => {
         if (results && results.pdf_report) {
-            window.open(`http://localhost:8001${results.pdf_report}`, '_blank');
+            window.open(`https://restaurant-inspection-api.onrender.com${results.pdf_report}`, '_blank');
         } else {
             alert('التقرير غير متوفر حالياً');
         }

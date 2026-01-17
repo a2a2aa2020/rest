@@ -3,8 +3,36 @@
 let currentStep = 1;
 const totalSteps = 6;
 
+// Map steps to required image inputs
+const stepImageMap = {
+    2: 'facadeImage',
+    3: 'ceilingImage',
+    4: 'wallImage',
+    5: 'floorImage',
+    6: 'lightingImage'
+};
+
 function nextStep() {
     if (currentStep < totalSteps) {
+        // Validate if current step requires an image
+        if (stepImageMap[currentStep]) {
+            const imageInput = document.getElementById(stepImageMap[currentStep]);
+            if (!imageInput || !imageInput.files || !imageInput.files[0]) {
+                alert('⚠️ الرجاء التقاط الصورة المطلوبة قبل المتابعة');
+                // Highlight the camera placeholder
+                const placeholder = imageInput.parentElement.querySelector('.camera-placeholder');
+                if (placeholder) {
+                    placeholder.style.border = '3px solid #dc3545';
+                    placeholder.style.animation = 'shake 0.5s';
+                    setTimeout(() => {
+                        placeholder.style.border = '';
+                        placeholder.style.animation = '';
+                    }, 2000);
+                }
+                return; // Don't proceed to next step
+            }
+        }
+
         // Hide current step
         document.getElementById(`step${currentStep}`).style.display = 'none';
 
@@ -77,7 +105,7 @@ async function submitInspection() {
     formData.append('lighting_image', document.getElementById('lightingImage').files[0]);
 
     try {
-        const response = await fetch('http://localhost:8001/api/inspect', {
+        const response = await fetch('https://restaurant-inspection-api.onrender.com/api/inspect', {
             method: 'POST',
             body: formData
         });
