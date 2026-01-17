@@ -116,3 +116,4 @@ function simulateProgress() {
         progressBar.style.width = `${progress}%`;
     }, 500);
 }
+
