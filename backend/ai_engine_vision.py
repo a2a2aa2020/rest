@@ -191,18 +191,28 @@ class InspectionAIEngine:
         
         detection = self._detect_objects_in_image(image_path)
         
-        # Check for AC unit related objects
-        ac_keywords = ['air conditioner', 'ac unit', 'hvac', 'cooling unit', 'condenser']
+        # Debug: Print all detected objects and labels
+        print(f"DEBUG - Detected objects: {[obj for obj, _ in detection['objects']]}")
+        print(f"DEBUG - Detected labels: {[label for label, _ in detection['labels']]}")
+        
+        # Check for AC unit related objects - EXPANDED KEYWORDS
+        ac_keywords = [
+            'air conditioner', 'ac unit', 'hvac', 'cooling unit', 'condenser',
+            'air conditioning', 'machine', 'unit', 'cooling', 'compressor',
+            'split', 'outdoor unit', 'aircon', 'climate control'
+        ]
         found_ac_units = []
         
         for obj_name, score in detection["objects"]:
             if any(keyword in obj_name.lower() for keyword in ac_keywords):
                 found_ac_units.append((obj_name, score))
+                print(f"DEBUG - Found AC in objects: {obj_name} (score: {score})")
         
         for label, score in detection["labels"]:
             if any(keyword in label.lower() for keyword in ac_keywords):
                 if label not in [f[0] for f in found_ac_units]:
                     found_ac_units.append((label, score))
+                    print(f"DEBUG - Found AC in labels: {label} (score: {score})")
         
         ac_count = len(found_ac_units)
         confidence = max([score for _, score in found_ac_units], default=0.90)
