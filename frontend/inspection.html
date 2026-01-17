@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>فحص جديد - نظام الفحص الذكي</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
+    <link href="css/styles.css" rel="stylesheet">
+</head>
+
+<body>
+    <div class="container py-4">
+        <!-- Header -->
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <a href="dashboard.html" class="btn btn-outline-primary">← رجوع</a>
+            <h2>فحص جديد للمنشأة</h2>
+            <div></div>
+        </div>
+
+        <!-- Progress Indicator -->
+        <div class="step-indicator" id="stepIndicator">
+            <div class="step-dot active"></div>
+            <div class="step-dot"></div>
+            <div class="step-dot"></div>
+            <div class="step-dot"></div>
+            <div class="step-dot"></div>
+            <div class="step-dot"></div>
+        </div>
+
+        <!-- Inspection Form -->
+        <form id="inspectionForm" class="info-card">
+            <div id="step1" class="step-content">
+                <h3 class="text-primary mb-4">معلومات المنشأة</h3>
+                <div class="mb-3">
+                    <label class="form-label">اسم المنشأة</label>
+                    <input type="text" class="form-control" id="restaurantName" value="مطعم النخيل" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">رقم السجل التجاري</label>
+                    <input type="text" class="form-control" id="commercialRegister" value="1010567890" required>
+                </div>
+                <button type="button" class="btn btn-primary official-btn w-100" onclick="nextStep()">التالي →</button>
+            </div>
+
+            <div id="step2" class="step-content" style="display:none;">
+                <h3 class="text-primary mb-3">الصورة 1: الواجهة الخارجية</h3>
+                <div class="instruction-box">
+                    <div class="instruction-title">💡 إرشادات التصوير:</div>
+                    <ul class="instruction-list">
+                        <li>• صوّر الواجهة الخارجية الكاملة للمطعم</li>
+                        <li>• تأكد من وضوح الإضاءة</li>
+                        <li>• تأكد من ظهور كامل الواجهة</li>
+                    </ul>
+                </div>
+                <div class="camera-placeholder" onclick="document.getElementById('facadeImage').click()">
+                    <div class="camera-icon">📷</div>
+                    <p>اضغط لالتقاط صورة الواجهة</p>
+                </div>
+                <input type="file" id="facadeImage" accept="image/*" capture="environment" style="display:none;"
+                    onchange="previewImage(this, 'facadePreview')" required>
+                <div id="facadePreview" class="preview-container"></div>
+                <button type="button" class="btn btn-primary official-btn w-100" onclick="nextStep()">التالي →</button>
+            </div>
+
+            <div id="step3" class="step-content" style="display:none;">
+                <h3 class="text-primary mb-3">الصورة 2: السقف الداخلي</h3>
+                <div class="instruction-box">
+                    <div class="instruction-title">💡 إرشادات التصوير:</div>
+                    <ul class="instruction-list">
+                        <li>• صوّر السقف من عدة زوايا</li>
+                        <li>• تأكد من وضوح السقف بالكامل</li>
+                        <li>• ابحث عن أي أسلاك أو أنابيب ظاهرة</li>
+                    </ul>
+                </div>
+                <div class="camera-placeholder" onclick="document.getElementById('ceilingImage').click()">
+                    <div class="camera-icon">📷</div>
+                    <p>اضغط لالتقاط صورة السقف</p>
+                </div>
+                <input type="file" id="ceilingImage" accept="image/*" capture="environment" style="display:none;"
+                    onchange="previewImage(this, 'ceilingPreview')" required>
+                <div id="ceilingPreview" class="preview-container"></div>
+                <button type="button" class="btn btn-primary official-btn w-100" onclick="nextStep()">التالي →</button>
+            </div>
+
+            <div id="step4" class="step-content" style="display:none;">
+                <h3 class="text-primary mb-3">الصورة 3: الجدران الداخلية</h3>
+                <div class="instruction-box">
+                    <div class="instruction-title">💡 إرشادات التصوير:</div>
+                    <ul class="instruction-list">
+                        <li>• صوّر الجدران من زوايا مختلفة</li>
+                        <li>• افحص وجود أسلاك أو أنابيب ظاهرة</li>
+                        <li>• تأكد من وضوح الصورة</li>
+                    </ul>
+                </div>
+                <div class="camera-placeholder" onclick="document.getElementById('wallImage').click()">
+                    <div class="camera-icon">📷</div>
+                    <p>اضغط لالتقاط صورة الجدران</p>
+                </div>
+                <input type="file" id="wallImage" accept="image/*" capture="environment" style="display:none;"
+                    onchange="previewImage(this, 'wallPreview')" required>
+                <div id="wallPreview" class="preview-container"></div>
+                <button type="button" class="btn btn-primary official-btn w-100" onclick="nextStep()">التالي →</button>
+            </div>
+
+            <div id="step5" class="step-content" style="display:none;">
+                <h3 class="text-primary mb-3">الصورة 4: الأرضيات</h3>
+                <div class="instruction-box">
+                    <div class="instruction-title">💡 إرشادات التصوير:</div>
+                    <ul class="instruction-list">
+                        <li>• صوّر الأرضية في منطقة تحضير الطعام</li>
+                        <li>• ابحث عن فواصل أو شقوق</li>
+                        <li>• تأكد من الإضاءة الجيدة</li>
+                    </ul>
+                </div>
+                <div class="camera-placeholder" onclick="document.getElementById('floorImage').click()">
+                    <div class="camera-icon">📷</div>
+                    <p>اضغط لالتقاط صورة الأرضية</p>
+                </div>
+                <input type="file" id="floorImage" accept="image/*" capture="environment" style="display:none;"
+                    onchange="previewImage(this, 'floorPreview')" required>
+                <div id="floorPreview" class="preview-container"></div>
+                <button type="button" class="btn btn-primary official-btn w-100" onclick="nextStep()">التالي →</button>
+            </div>
+
+            <div id="step6" class="step-content" style="display:none;">
+                <h3 class="text-primary mb-3">الصورة 5: منطقة التحضير مع الإضاءة</h3>
+                <div class="instruction-box">
+                    <div class="instruction-title">💡 إرشادات التصوير:</div>
+                    <ul class="instruction-list">
+                        <li>• شغّل جميع الإضاءة</li>
+                        <li>• صوّر منطقة التحضير بالكامل</li>
+                        <li>• تأكد من وضوح وحدات الإضاءة</li>
+                    </ul>
+                </div>
+                <div class="camera-placeholder" onclick="document.getElementById('lightingImage').click()">
+                    <div class="camera-icon">📷</div>
+                    <p>اضغط لالتقاط صورة الإضاءة</p>
+                </div>
+                <input type="file" id="lightingImage" accept="image/*" capture="environment" style="display:none;"
+                    onchange="previewImage(this, 'lightingPreview')" required>
+                <div id="lightingPreview" class="preview-container"></div>
+                <button type="button" class="btn btn-success official-btn w-100" onclick="submitInspection()">إرسال
+                    للفحص ✓</button>
+            </div>
+        </form>
+
+        <!-- Loading Modal -->
+        <div class="modal fade" id="loadingModal" data-bs-backdrop="static" tabindex="-1">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-body text-center p-5">
+                        <div class="loading-spinner mx-auto mb-4"></div>
+                        <h4>جاري تحليل الصور...</h4>
+                        <p class="text-secondary">الذكاء الاصطناعي يعمل على فحص المنشأة</p>
+                        <div class="progress mt-4">
+                            <div class="progress-bar progress-bar-striped progress-bar-animated bg-success"
+                                id="progressBar" style="width: 0%"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="js/inspection.js"></script>
+</body>
+
+</html>
