@@ -12,64 +12,13 @@ function loadResults() {
     const resultsData = sessionStorage.getItem('inspectionResults');
 
     if (!resultsData) {
-        // Demo results for testing
-        results = {
-            inspection_id: 'INS_20260117_120000',
-            restaurant_name: 'مطعم النخيل',
-            commercial_register: '1010567890',
-            overall_status: 'compliant',
-            overall_score: 95.3,
-            timestamp: new Date().toISOString(),
-            criteria: [
-                {
-                    criterion_id: 1,
-                    criterion_name: 'الأسلاك والأنابيب الظاهرة',
-                    status: 'compliant',
-                    score: 96,
-                    confidence: 0.92,
-                    details: {
-                        ceiling: { has_exposed_wires: false, description: 'لا توجد أسلاك ظاهرة' },
-                        wall: { has_exposed_wires: false, description: 'لا توجد أسلاك ظاهرة' },
-                        floor_general: { has_exposed_wires: false, description: 'لا توجد أسلاك ظاهرة' }
-                    }
-                },
-                {
-                    criterion_id: 2,
-                    criterion_name: 'وحدات التكييف على الواجهة',
-                    status: 'compliant',
-                    score: 98,
-                    confidence: 0.95,
-                    details: {
-                        facade: { has_ac_units: false, description: 'لا توجد وحدات تكييف ظاهرة' }
-                    }
-                },
-                {
-                    criterion_id: 3,
-                    criterion_name: 'الأرضيات بدون فواصل',
-                    status: 'compliant',
-                    score: 92,
-                    confidence: 0.88,
-                    details: {
-                        floor: { has_joints: false, description: 'الأرضية موحدة بدون فواصل' }
-                    }
-                },
-                {
-                    criterion_id: 4,
-                    criterion_name: 'كفاية الإضاءة',
-                    status: 'compliant',
-                    score: 95,
-                    confidence: 0.90,
-                    details: {
-                        lighting: { is_adequate: true, description: 'مستوى الإضاءة جيد (85%)' }
-                    }
-                }
-            ],
-            pdf_report: '/reports/inspection_report_INS_20260117_120000.pdf'
-        };
-    } else {
-        results = JSON.parse(resultsData);
+        // No results found - redirect to home
+        alert('⚠️ لا توجد نتائج فحص.\n\nالرجاء إجراء فحص جديد.');
+        window.location.href = 'index.html';
+        return;
     }
 
+    results = JSON.parse(resultsData);
     displayResults();
 }
 
