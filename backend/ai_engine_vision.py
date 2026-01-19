@@ -68,7 +68,7 @@ class InspectionAIEngine:
         }
         
         # Criterion 1: Exposed Wires/Cables (3 images)
-        print("\n[1/4] Checking for exposed wires...")
+        print("\n[1/3] Checking for exposed wires...")
         criterion1 = self.check_exposed_wires({
             "ceiling": image_paths["ceiling"],
             "wall": image_paths["wall"],
@@ -76,20 +76,15 @@ class InspectionAIEngine:
         })
         results["criteria"].append(criterion1)
         
-        # Criterion 2: AC Units on Facade (1 image)
-        print("\n[2/4] Checking for AC units...")
-        criterion2 = self.check_ac_units(image_paths["facade"])
+        # Criterion 2: Floor Joints (1 image)
+        print("\n[2/3] Checking floor joints...")
+        criterion2 = self.check_floor_joints(image_paths["floor_prep"])
         results["criteria"].append(criterion2)
         
-        # Criterion 3: Floor Joints (1 image)
-        print("\n[3/4] Checking floor joints...")
-        criterion3 = self.check_floor_joints(image_paths["floor_prep"])
+        # Criterion 3: Lighting Adequacy (1 image)
+        print("\n[3/3] Checking lighting...")
+        criterion3 = self.check_lighting(image_paths["lighting"])
         results["criteria"].append(criterion3)
-        
-        # Criterion 4: Lighting Adequacy (1 image)
-        print("\n[4/4] Checking lighting...")
-        criterion4 = self.check_lighting(image_paths["lighting"])
-        results["criteria"].append(criterion4)
         
         # Calculate overall score
         total_score = sum([c["score"] for c in results["criteria"]])
@@ -247,124 +242,10 @@ class InspectionAIEngine:
         results["confidence"] = float(sum(confidences) / len(confidences))
         return results
     
-    def check_ac_units(self, image_path: str) -> Dict[str, Any]:
-        """Check for AC units on facade using Gemini Vision (with Google Vision fallback)"""
-        results = {
-            "criterion_id": 2,
-            "criterion_name": "وحدات التكييف على الواجهة",
-            "criterion_name_en": "AC Units on Facade",
-            "status": "compliant",
-            "score": 0,
-            "confidence": 0,
-            "details": {},
-            "ai_used": "gemini"  # Track which AI was used
-        }
-        
-        # Try Gemini Vision first
-        gemini_result = None
-        if self.use_gemini:
-            prompt = """قم بتحليل هذه الصورة للواجهة الخارجية بعناية:
-
-المهمة: الكشف عن وحدات التكييف الخارجية (Split AC Units, HVAC Outdoor Units, Air Conditioner Condensers)
-
-ابحث عن:
-- وحدات التكييف المثبتة على الجدار الخارجي
-- الوحدات الخارجية للمكيفات
-- أجهزة الضغط (Compressors)
-- المكثفات (Condensers)
-
-أجب بصيغة JSON فقط:
-{
-  "has_ac_units": true أو false,
-  "count": عدد الوحدات (رقم),
-  "confidence": نسبة الثقة من 0 إلى 100,
-  "description": "وصف مختصر بالعربية"
-}"""
-            
-            gemini_result = self._detect_with_gemini(image_path, prompt)
-        
-        # Use Gemini results if available
-        if gemini_result and isinstance(gemini_result, dict) and "has_ac_units" in gemini_result:
-            print(f"[OK] Using Gemini Vision results")
-            has_ac = gemini_result.get("has_ac_units", False)
-            ac_count = gemini_result.get("count", 0)
-            confidence = gemini_result.get("confidence", 90) / 100  # Convert to 0-1 scale
-            description = gemini_result.get("description", "تم التحليل بواسطة Gemini")
-            
-            results["details"]["facade"] = {
-                "has_ac_units": has_ac,
-                "unit_count": ac_count,
-                "confidence": float(confidence),
-                "description": description,
-                "detected_units": [f"AC Unit {i+1}" for i in range(ac_count)]
-            }
-            
-            if ac_count > 0:
-                results["status"] = "non_compliant"
-                results["score"] = max(30, 98 - (ac_count * 10))  # Decrease score based on count
-            else:
-                results["status"] = "compliant"
-                results["score"] = 98
-            
-            results["confidence"] = float(confidence)
-            results["ai_used"] = "gemini"
-            
-        else:
-            # Fallback to Google Vision
-            print(f"[WARNING] Falling back to Google Vision for AC detection")
-            results["ai_used"] = "google_vision"
-            
-            detection = self._detect_objects_in_image(image_path)
-            
-            # Debug: Print all detected objects and labels
-            print(f"DEBUG - Detected objects: {[obj for obj, _ in detection['objects']]}")
-            print(f"DEBUG - Detected labels: {[label for label, _ in detection['labels']]}")
-            
-            # Check for AC unit related objects - EXPANDED KEYWORDS
-            ac_keywords = [
-                'air conditioner', 'ac unit', 'hvac', 'cooling unit', 'condenser',
-                'air conditioning', 'machine', 'unit', 'cooling', 'compressor',
-                'split', 'outdoor unit', 'aircon', 'climate control', 'fan'
-            ]
-            found_ac_units = []
-            
-            for obj_name, score in detection["objects"]:
-                if any(keyword in obj_name.lower() for keyword in ac_keywords):
-                    found_ac_units.append((obj_name, score))
-                    print(f"DEBUG - Found AC in objects: {obj_name} (score: {score})")
-            
-            for label, score in detection["labels"]:
-                if any(keyword in label.lower() for keyword in ac_keywords):
-                    if label not in [f[0] for f in found_ac_units]:
-                        found_ac_units.append((label, score))
-                        print(f"DEBUG - Found AC in labels: {label} (score: {score})")
-            
-            ac_count = len(found_ac_units)
-            confidence = max([score for _, score in found_ac_units], default=0.90)
-            
-            results["details"]["facade"] = {
-                "has_ac_units": ac_count > 0,
-                "unit_count": ac_count,
-                "confidence": float(confidence),
-                "description": f"تم اكتشاف {ac_count} وحدة تكييف على الواجهة" if ac_count > 0 else "لا توجد وحدات تكييف ظاهرة",
-                "detected_units": [name for name, _ in found_ac_units]
-            }
-            
-            if ac_count > 0:
-                results["status"] = "non_compliant"
-                results["score"] = 30
-            else:
-                results["status"] = "compliant"
-                results["score"] = 98
-            
-            results["confidence"] = float(confidence)
-        
-        return results
-    
     def check_floor_joints(self, image_path: str) -> Dict[str, Any]:
         """Check for floor joints/cracks using Vision API"""
         results = {
-            "criterion_id": 3,
+            "criterion_id": 2,
             "criterion_name": "الأرضيات بدون فواصل",
             "criterion_name_en": "Seamless Flooring",
             "status": "compliant",
@@ -410,7 +291,7 @@ class InspectionAIEngine:
     def check_lighting(self, image_path: str) -> Dict[str, Any]:
         """Check lighting adequacy using Vision API"""
         results = {
-            "criterion_id": 4,
+            "criterion_id": 3,
             "criterion_name": "كفاية الإضاءة",
             "criterion_name_en": "Lighting Adequacy",
             "status": "compliant",
@@ -459,5 +340,3 @@ class InspectionAIEngine:
         
         results["confidence"] = 0.88
         return results
-
-
