@@ -1,18 +1,21 @@
 """
 Google Cloud Vision AI Engine for Restaurant Inspection
-Uses Google Cloud Vision API for accurate object detection
+Uses Google Cloud Vision API and Gemini Vision for accurate object detection
 """
 import os
 from google.cloud import vision
 from typing import Dict, Any
 import io
+import json
+from google import genai
+
 
 
 class InspectionAIEngine:
     """AI Engine using Google Cloud Vision API"""
     
     def __init__(self):
-        """Initialize Google Cloud Vision client"""
+        """Initialize Google Cloud Vision and Gemini Vision clients"""
         import json
         import tempfile
         
@@ -35,6 +38,19 @@ class InspectionAIEngine:
         # Initialize Vision API client
         self.client = vision.ImageAnnotatorClient()
         print("Google Cloud Vision AI Engine initialized successfully")
+        
+        # Initialize Gemini Vision
+        try:
+            gemini_api_key = os.getenv('GEMINI_API_KEY', 'AIzaSyCC-Xr3nLr9zB40xMwWdfb_dh5cEmsbQeI')  # New project key
+            self.gemini_client = genai.Client(api_key=gemini_api_key)
+            self.use_gemini = True
+            print("[OK] Gemini Vision initialized successfully")
+        except Exception as e:
+            print(f"[WARNING] Gemini Vision initialization failed: {e}")
+            print("  Falling back to Google Vision only")
+            self.use_gemini = False
+            self.gemini_client = None
+
     
     def analyze_inspection(self, image_paths: Dict[str, str]) -> Dict[str, Any]:
         """
@@ -112,7 +128,7 @@ class InspectionAIEngine:
             request = vision.AnnotateImageRequest(image=image, features=features)
             response = self.client.annotate_image(request=request)
             
-            print(f"✓ Image analyzed successfully")
+            print(f"[OK] Image analyzed successfully")
             
             return {
                 "objects": [(obj.name, obj.score) for obj in response.localized_object_annotations],
@@ -122,6 +138,60 @@ class InspectionAIEngine:
         except Exception as e:
             print(f"Error analyzing image {image_path}: {e}")
             return {"objects": [], "labels": [], "properties": None}
+    
+    def _detect_with_gemini(self, image_path: str, prompt: str) -> Dict[str, Any]:
+        """Detect using Gemini Vision with custom prompt"""
+        if not self.use_gemini or not self.gemini_client:
+            return None
+        
+        try:
+            print(f"[INFO] Using Gemini Vision for analysis...")
+            
+            # Read image file
+            with open(image_path, 'rb') as f:
+                image_bytes = f.read()
+            
+            # Create image part
+            import base64
+            image_b64 = base64.b64encode(image_bytes).decode('utf-8')
+            
+            # Generate content with the image inline
+            response = self.gemini_client.models.generate_content(
+                model='gemini-1.5-pro',  # Trying 1.5 Pro
+                contents=[
+                    prompt,
+                    {
+                        'inline_data': {
+                            'mime_type': 'image/jpeg',
+                            'data': image_b64
+                        }
+                    }
+                ]
+            )
+            
+            print(f"[OK] Gemini analysis complete")
+            
+            # Try to parse as JSON
+            try:
+                result_text = response.text.strip()
+                # Remove markdown code blocks if present
+                if result_text.startswith('```'):
+                    result_text = result_text.split('```')[1]
+                    if result_text.startswith('json'):
+                        result_text = result_text[4:]
+                result = json.loads(result_text.strip())
+                return result
+            except:
+                # If not JSON, return as text
+                return {"raw_response": response.text}
+                
+        except Exception as e:
+            print(f"[WARNING] Gemini Vision error: {e}")
+            print(f"  Falling back to Google Vision")
+            return None
+
+
+
     
     def check_exposed_wires(self, images: Dict[str, str]) -> Dict[str, Any]:
         """Check for exposed wires/cables using Vision API"""
@@ -178,7 +248,7 @@ class InspectionAIEngine:
         return results
     
     def check_ac_units(self, image_path: str) -> Dict[str, Any]:
-        """Check for AC units on facade using Vision API"""
+        """Check for AC units on facade using Gemini Vision (with Google Vision fallback)"""
         results = {
             "criterion_id": 2,
             "criterion_name": "وحدات التكييف على الواجهة",
@@ -186,53 +256,109 @@ class InspectionAIEngine:
             "status": "compliant",
             "score": 0,
             "confidence": 0,
-            "details": {}
+            "details": {},
+            "ai_used": "gemini"  # Track which AI was used
         }
         
-        detection = self._detect_objects_in_image(image_path)
+        # Try Gemini Vision first
+        gemini_result = None
+        if self.use_gemini:
+            prompt = """قم بتحليل هذه الصورة للواجهة الخارجية بعناية:
+
+المهمة: الكشف عن وحدات التكييف الخارجية (Split AC Units, HVAC Outdoor Units, Air Conditioner Condensers)
+
+ابحث عن:
+- وحدات التكييف المثبتة على الجدار الخارجي
+- الوحدات الخارجية للمكيفات
+- أجهزة الضغط (Compressors)
+- المكثفات (Condensers)
+
+أجب بصيغة JSON فقط:
+{
+  "has_ac_units": true أو false,
+  "count": عدد الوحدات (رقم),
+  "confidence": نسبة الثقة من 0 إلى 100,
+  "description": "وصف مختصر بالعربية"
+}"""
+            
+            gemini_result = self._detect_with_gemini(image_path, prompt)
         
-        # Debug: Print all detected objects and labels
-        print(f"DEBUG - Detected objects: {[obj for obj, _ in detection['objects']]}")
-        print(f"DEBUG - Detected labels: {[label for label, _ in detection['labels']]}")
-        
-        # Check for AC unit related objects - EXPANDED KEYWORDS
-        ac_keywords = [
-            'air conditioner', 'ac unit', 'hvac', 'cooling unit', 'condenser',
-            'air conditioning', 'machine', 'unit', 'cooling', 'compressor',
-            'split', 'outdoor unit', 'aircon', 'climate control'
-        ]
-        found_ac_units = []
-        
-        for obj_name, score in detection["objects"]:
-            if any(keyword in obj_name.lower() for keyword in ac_keywords):
-                found_ac_units.append((obj_name, score))
-                print(f"DEBUG - Found AC in objects: {obj_name} (score: {score})")
-        
-        for label, score in detection["labels"]:
-            if any(keyword in label.lower() for keyword in ac_keywords):
-                if label not in [f[0] for f in found_ac_units]:
-                    found_ac_units.append((label, score))
-                    print(f"DEBUG - Found AC in labels: {label} (score: {score})")
-        
-        ac_count = len(found_ac_units)
-        confidence = max([score for _, score in found_ac_units], default=0.90)
-        
-        results["details"]["facade"] = {
-            "has_ac_units": ac_count > 0,
-            "unit_count": ac_count,
-            "confidence": float(confidence),
-            "description": f"تم اكتشاف {ac_count} وحدة تكييف على الواجهة" if ac_count > 0 else "لا توجد وحدات تكييف ظاهرة",
-            "detected_units": [name for name, _ in found_ac_units]
-        }
-        
-        if ac_count > 0:
-            results["status"] = "non_compliant"
-            results["score"] = 30
+        # Use Gemini results if available
+        if gemini_result and isinstance(gemini_result, dict) and "has_ac_units" in gemini_result:
+            print(f"[OK] Using Gemini Vision results")
+            has_ac = gemini_result.get("has_ac_units", False)
+            ac_count = gemini_result.get("count", 0)
+            confidence = gemini_result.get("confidence", 90) / 100  # Convert to 0-1 scale
+            description = gemini_result.get("description", "تم التحليل بواسطة Gemini")
+            
+            results["details"]["facade"] = {
+                "has_ac_units": has_ac,
+                "unit_count": ac_count,
+                "confidence": float(confidence),
+                "description": description,
+                "detected_units": [f"AC Unit {i+1}" for i in range(ac_count)]
+            }
+            
+            if ac_count > 0:
+                results["status"] = "non_compliant"
+                results["score"] = max(30, 98 - (ac_count * 10))  # Decrease score based on count
+            else:
+                results["status"] = "compliant"
+                results["score"] = 98
+            
+            results["confidence"] = float(confidence)
+            results["ai_used"] = "gemini"
+            
         else:
-            results["status"] = "compliant"
-            results["score"] = 98
+            # Fallback to Google Vision
+            print(f"[WARNING] Falling back to Google Vision for AC detection")
+            results["ai_used"] = "google_vision"
+            
+            detection = self._detect_objects_in_image(image_path)
+            
+            # Debug: Print all detected objects and labels
+            print(f"DEBUG - Detected objects: {[obj for obj, _ in detection['objects']]}")
+            print(f"DEBUG - Detected labels: {[label for label, _ in detection['labels']]}")
+            
+            # Check for AC unit related objects - EXPANDED KEYWORDS
+            ac_keywords = [
+                'air conditioner', 'ac unit', 'hvac', 'cooling unit', 'condenser',
+                'air conditioning', 'machine', 'unit', 'cooling', 'compressor',
+                'split', 'outdoor unit', 'aircon', 'climate control', 'fan'
+            ]
+            found_ac_units = []
+            
+            for obj_name, score in detection["objects"]:
+                if any(keyword in obj_name.lower() for keyword in ac_keywords):
+                    found_ac_units.append((obj_name, score))
+                    print(f"DEBUG - Found AC in objects: {obj_name} (score: {score})")
+            
+            for label, score in detection["labels"]:
+                if any(keyword in label.lower() for keyword in ac_keywords):
+                    if label not in [f[0] for f in found_ac_units]:
+                        found_ac_units.append((label, score))
+                        print(f"DEBUG - Found AC in labels: {label} (score: {score})")
+            
+            ac_count = len(found_ac_units)
+            confidence = max([score for _, score in found_ac_units], default=0.90)
+            
+            results["details"]["facade"] = {
+                "has_ac_units": ac_count > 0,
+                "unit_count": ac_count,
+                "confidence": float(confidence),
+                "description": f"تم اكتشاف {ac_count} وحدة تكييف على الواجهة" if ac_count > 0 else "لا توجد وحدات تكييف ظاهرة",
+                "detected_units": [name for name, _ in found_ac_units]
+            }
+            
+            if ac_count > 0:
+                results["status"] = "non_compliant"
+                results["score"] = 30
+            else:
+                results["status"] = "compliant"
+                results["score"] = 98
+            
+            results["confidence"] = float(confidence)
         
-        results["confidence"] = float(confidence)
         return results
     
     def check_floor_joints(self, image_path: str) -> Dict[str, Any]:
