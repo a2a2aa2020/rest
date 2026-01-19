@@ -358,16 +358,63 @@ body {
     font-weight: 700;
 }
 
+/* New Simplified Result Card Design */
+.criterion-header-new {
+    text-align: center;
+    margin-bottom: 2rem;
+}
+
+.criterion-name-large {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--text-color);
+}
+
+.status-icon-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+    margin: 2rem 0;
+}
+
+.status-circle {
+    position: relative;
+    width: 80px;
+    height: 80px;
+    border: 4px solid;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.status-icon {
+    font-size: 5rem;
+    font-weight: 700;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    line-height: 1;
+}
+
+.status-text {
+    font-size: 1.5rem;
+    font-weight: 700;
+}
+
+
 /* Responsive */
 @media (max-width: 768px) {
     .ministry-title {
         font-size: 1.5rem;
     }
-    
+
     .app-title {
         font-size: 1.2rem;
     }
-    
+
     .official-btn {
         font-size: 1rem;
         padding: 0.875rem;
@@ -386,7 +433,9 @@ body {
 }
 
 @keyframes spin {
-    to { transform: rotate(360deg); }
+    to {
+        transform: rotate(360deg);
+    }
 }
 
 /* Image Preview */
@@ -408,4 +457,28 @@ body {
     color: white;
     padding: 0.5rem 1rem;
     border-radius: 0 8px 0 8px;
+}
+
+/* Shake Animation for Validation */
+@keyframes shake {
+
+    0%,
+    100% {
+        transform: translateX(0);
+    }
+
+    10%,
+    30%,
+    50%,
+    70%,
+    90% {
+        transform: translateX(-5px);
+    }
+
+    20%,
+    40%,
+    60%,
+    80% {
+        transform: translateX(5px);
+    }
 }
