@@ -25,15 +25,14 @@ function loadResults() {
 function displayResults() {
     // Overall summary
     const statusMap = {
-        'compliant': { text: 'مستوفي للمعايير', icon: '🎉', class: 'text-success' },
-        'needs_improvement': { text: 'يحتاج تحسينات', icon: '⚠️', class: 'text-warning' },
-        'non_compliant': { text: 'غير مستوفي', icon: '❌', class: 'text-danger' }
+        'compliant': { text: 'مستوفي للمعايير', class: 'text-success' },
+        'needs_improvement': { text: 'يحتاج تحسينات', class: 'text-warning' },
+        'non_compliant': { text: 'غير مستوفي', class: 'text-danger' }
     };
 
     const status = statusMap[results.overall_status] || statusMap['non_compliant'];
 
     document.getElementById('resultSummary').innerHTML = `
-        <div class="result-icon">${status.icon}</div>
         <div class="result-title ${status.class}">${status.text}</div>
         <div class="result-score mb-3">${results.overall_score.toFixed(1)}/100</div>
         <p class="text-secondary">${getStatusMessage(results.overall_status)}</p>
@@ -55,46 +54,41 @@ function displayResults() {
 }
 
 function createCriterionCard(criterion) {
-    const statusColors = {
-        'compliant': 'success',
-        'needs_improvement': 'warning',
-        'non_compliant': 'danger'
+    const statusData = {
+        'compliant': {
+            icon: '✓',
+            text: 'مستوفي',
+            color: '#2E7D32',
+            borderColor: '#4CAF50'
+        },
+        'needs_improvement': {
+            icon: '!',
+            text: 'يحتاج تحسين',
+            color: '#F57F17',
+            borderColor: '#FFC107'
+        },
+        'non_compliant': {
+            icon: '✗',
+            text: 'غير مستوفي',
+            color: '#C62828',
+            borderColor: '#F44336'
+        }
     };
 
-    const statusIcons = {
-        'compliant': '✓',
-        'needs_improvement': '⚠',
-        'non_compliant': '✗'
-    };
+    const status = statusData[criterion.status] || statusData['non_compliant'];
 
     const card = document.createElement('div');
     card.className = 'criterion-card';
 
     card.innerHTML = `
-        <div class="criterion-header">
-            <div class="criterion-name">${criterion.criterion_name}</div>
-            <div class="criterion-score">
-                <span class="badge bg-${statusColors[criterion.status]}" style="font-size: 1.2rem; padding: 0.75rem 1.25rem;">
-                    ${statusIcons[criterion.status]} ${criterion.score}/100
-                </span>
-            </div>
+        <div class="criterion-header-new">
+            <div class="criterion-name-large">${criterion.criterion_name}</div>
         </div>
-        <div class="progress mb-3" style="height: 8px;">
-            <div class="progress-bar bg-${statusColors[criterion.status]}" style="width: ${criterion.score}%"></div>
-        </div>
-        <div class="row">
-            <div class="col-md-6">
-                <div class="info-label">الحالة</div>
-                <div class="info-value">
-                    <span class="status-badge status-${criterion.status}">
-                        ${statusIcons[criterion.status]} ${getStatusText(criterion.status)}
-                    </span>
-                </div>
+        <div class="status-icon-container">
+            <div class="status-circle" style="border-color: ${status.borderColor};">
+                <div class="status-icon" style="color: ${status.color};">${status.icon}</div>
             </div>
-            <div class="col-md-6">
-                <div class="info-label">دقة التحليل</div>
-                <div class="info-value">${(criterion.confidence * 100).toFixed(0)}%</div>
-            </div>
+            <div class="status-text" style="color: ${status.color};">${status.text}</div>
         </div>
         ${createDetailsSection(criterion.details)}
     `;
