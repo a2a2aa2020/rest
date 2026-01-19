@@ -7,7 +7,7 @@ from google.cloud import vision
 from typing import Dict, Any
 import io
 import json
-import google.generativeai as genai
+from google import genai
 
 
 
@@ -459,4 +459,5 @@ class InspectionAIEngine:
         
         results["confidence"] = 0.88
         return results
+
 
