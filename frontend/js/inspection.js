@@ -1,5 +1,8 @@
 // Inspection Form JavaScript
-
+// Clear old results when starting new inspection
+window.addEventListener('DOMContentLoaded', () => {
+    sessionStorage.removeItem('inspectionResults');
+});
 let currentStep = 1;
 const totalSteps = 6;
 
@@ -160,3 +163,4 @@ function simulateProgress() {
         progressBar.style.width = `${progress}%`;
     }, 500);
 }
+
