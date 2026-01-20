@@ -517,3 +517,13 @@ If you see ANY indication of tiles or grout lines, mark as "non_compliant" even 
             "confidence": 0.88,
             "description": f"مستوى الإضاءة جيد ({brightness_percent}%)" if is_adequate else f"مستوى الإضاءة ضعيف ({brightness_percent}%)"
         }
+        
+        if not is_adequate:
+            results["status"] = "non_compliant"
+            results["score"] = 55
+        else:
+            results["status"] = "compliant"
+            results["score"] = 90
+        
+        results["confidence"] = 0.88
+        return results
