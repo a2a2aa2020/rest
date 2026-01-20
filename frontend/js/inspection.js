@@ -1,14 +1,15 @@
 // Inspection Form JavaScript
+
 // Clear old results when starting new inspection
 window.addEventListener('DOMContentLoaded', () => {
     sessionStorage.removeItem('inspectionResults');
 });
+
 let currentStep = 1;
 const totalSteps = 6;
 
-// Map steps to required image inputs
+// Step to image ID mapping (without facade)
 const stepImageMap = {
-    2: 'facadeImage',
     3: 'ceilingImage',
     4: 'wallImage',
     5: 'floorImage',
@@ -81,7 +82,7 @@ function removeImage(inputId, previewId) {
 
 async function submitInspection() {
     // Validate all images are uploaded
-    const requiredImages = ['facadeImage', 'ceilingImage', 'wallImage', 'floorImage', 'lightingImage'];
+    const requiredImages = ['ceilingImage', 'wallImage', 'floorImage', 'lightingImage'];
     for (const imageId of requiredImages) {
         if (!document.getElementById(imageId).files[0]) {
             alert('الرجاء رفع جميع الصور المطلوبة');
@@ -100,7 +101,7 @@ async function submitInspection() {
     const formData = new FormData();
     formData.append('restaurant_name', document.getElementById('restaurantName').value);
     formData.append('commercial_register', document.getElementById('commercialRegister').value);
-    formData.append('facade_image', document.getElementById('facadeImage').files[0]);
+    // Append images (4 images now - no facade)
     formData.append('ceiling_image', document.getElementById('ceilingImage').files[0]);
     formData.append('wall_image', document.getElementById('wallImage').files[0]);
     formData.append('floor_general_image', document.getElementById('floorImage').files[0]);
@@ -111,7 +112,7 @@ async function submitInspection() {
     try {
         // Add timeout to prevent infinite loading (3 minutes for AI processing)
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 180000); // 180 seconds (3 minutes) timeout
+        const timeoutId = setTimeout(() => controller.abort(), 300000); // 300 seconds (5 minutes) timeout
 
         const response = await fetch('https://restaurant-inspection-api.onrender.com/api/inspect', {
             method: 'POST',
@@ -163,4 +164,3 @@ function simulateProgress() {
         progressBar.style.width = `${progress}%`;
     }, 500);
 }
-
