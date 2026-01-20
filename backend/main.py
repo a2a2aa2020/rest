@@ -44,15 +44,14 @@ async def root():
     return {"message": "Restaurant Inspection API", "version": "1.0.0"}
 
 
-@app.post("/api/inspect")
-async def inspect_restaurant(
+@app.post("/api/analyze")
+async def analyze_inspection(
     restaurant_name: str = Form(...),
     commercial_register: str = Form(...),
     ceiling_image: UploadFile = File(...),
     wall_image: UploadFile = File(...),
     floor_general_image: UploadFile = File(...),
     floor_prep_image: UploadFile = File(...),
-    facade_image: UploadFile = File(...),
     lighting_image: UploadFile = File(...),
 ):
     """
@@ -65,16 +64,6 @@ async def inspect_restaurant(
         inspection_id = f"INS_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
         inspection_dir = os.path.join(UPLOAD_DIR, inspection_id)
         os.makedirs(inspection_dir, exist_ok=True)
-        
-        # Save all images
-        images = {
-            "ceiling": ceiling_image,
-            "wall": wall_image,
-            "floor_general": floor_general_image,
-            "floor_prep": floor_prep_image,
-            "facade": facade_image,
-            "lighting": lighting_image,
-        }
         
         image_paths = {}
         for key, image_file in images.items():
@@ -134,4 +123,5 @@ async def health_check():
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000, reload=True)
+
 
