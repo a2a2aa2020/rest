@@ -152,7 +152,7 @@ class InspectionAIEngine:
             
             # Generate content with the image inline
             response = self.gemini_client.models.generate_content(
-                model='gemini-1.5-pro',  # Trying 1.5 Pro
+                model='gemini-2.0-flash-exp',  # Updated to compatible model for v1beta
                 contents=[
                     prompt,
                     {
@@ -242,10 +242,124 @@ class InspectionAIEngine:
         results["confidence"] = float(sum(confidences) / len(confidences))
         return results
     
-    def check_floor_joints(self, image_path: str) -> Dict[str, Any]:
-        """Check for floor joints/cracks using Vision API"""
+    def check_ac_units(self, image_path: str) -> Dict[str, Any]:
+        """Check for AC units on facade using Gemini Vision (with Google Vision fallback)"""
         results = {
             "criterion_id": 2,
+            "criterion_name": "وحدات التكييف على الواجهة",
+            "criterion_name_en": "AC Units on Facade",
+            "status": "compliant",
+            "score": 0,
+            "confidence": 0,
+            "details": {},
+            "ai_used": "gemini"  # Track which AI was used
+        }
+        
+        # Try Gemini Vision first
+        gemini_result = None
+        if self.use_gemini:
+            prompt = """قم بتحليل هذه الصورة للواجهة الخارجية بعناية:
+
+المهمة: الكشف عن وحدات التكييف الخارجية (Split AC Units, HVAC Outdoor Units, Air Conditioner Condensers)
+
+ابحث عن:
+- وحدات التكييف المثبتة على الجدار الخارجي
+- الوحدات الخارجية للمكيفات
+- أجهزة الضغط (Compressors)
+- المكثفات (Condensers)
+
+أجب بصيغة JSON فقط:
+{
+  "has_ac_units": true أو false,
+  "count": عدد الوحدات (رقم),
+  "confidence": نسبة الثقة من 0 إلى 100,
+  "description": "وصف مختصر بالعربية"
+}"""
+            
+            gemini_result = self._detect_with_gemini(image_path, prompt)
+        
+        # Use Gemini results if available
+        if gemini_result and isinstance(gemini_result, dict) and "has_ac_units" in gemini_result:
+            print(f"[OK] Using Gemini Vision results")
+            has_ac = gemini_result.get("has_ac_units", False)
+            ac_count = gemini_result.get("count", 0)
+            confidence = gemini_result.get("confidence", 90) / 100  # Convert to 0-1 scale
+            description = gemini_result.get("description", "تم التحليل بواسطة Gemini")
+            
+            results["details"]["facade"] = {
+                "has_ac_units": has_ac,
+                "unit_count": ac_count,
+                "confidence": float(confidence),
+                "description": description,
+                "detected_units": [f"AC Unit {i+1}" for i in range(ac_count)]
+            }
+            
+            if ac_count > 0:
+                results["status"] = "non_compliant"
+                results["score"] = max(30, 98 - (ac_count * 10))  # Decrease score based on count
+            else:
+                results["status"] = "compliant"
+                results["score"] = 98
+            
+            results["confidence"] = float(confidence)
+            results["ai_used"] = "gemini"
+            
+        else:
+            # Fallback to Google Vision
+            print(f"[WARNING] Falling back to Google Vision for AC detection")
+            results["ai_used"] = "google_vision"
+            
+            detection = self._detect_objects_in_image(image_path)
+            
+            # Debug: Print all detected objects and labels
+            print(f"DEBUG - Detected objects: {[obj for obj, _ in detection['objects']]}")
+            print(f"DEBUG - Detected labels: {[label for label, _ in detection['labels']]}")
+            
+            # Check for AC unit related objects - EXPANDED KEYWORDS
+            ac_keywords = [
+                'air conditioner', 'ac unit', 'hvac', 'cooling unit', 'condenser',
+                'air conditioning', 'machine', 'unit', 'cooling', 'compressor',
+                'split', 'outdoor unit', 'aircon', 'climate control', 'fan'
+            ]
+            found_ac_units = []
+            
+            for obj_name, score in detection["objects"]:
+                if any(keyword in obj_name.lower() for keyword in ac_keywords):
+                    found_ac_units.append((obj_name, score))
+                    print(f"DEBUG - Found AC in objects: {obj_name} (score: {score})")
+            
+            for label, score in detection["labels"]:
+                if any(keyword in label.lower() for keyword in ac_keywords):
+                    if label not in [f[0] for f in found_ac_units]:
+                        found_ac_units.append((label, score))
+                        print(f"DEBUG - Found AC in labels: {label} (score: {score})")
+            
+            ac_count = len(found_ac_units)
+            confidence = max([score for _, score in found_ac_units], default=0.90)
+            
+            results["details"]["facade"] = {
+                "has_ac_units": ac_count > 0,
+                "unit_count": ac_count,
+                "confidence": float(confidence),
+                "description": f"تم اكتشاف {ac_count} وحدة تكييف على الواجهة" if ac_count > 0 else "لا توجد وحدات تكييف ظاهرة",
+                "detected_units": [name for name, _ in found_ac_units]
+            }
+            
+            if ac_count > 0:
+                results["status"] = "non_compliant"
+                results["score"] = 30
+            else:
+                results["status"] = "compliant"
+                results["score"] = 98
+            
+            results["confidence"] = float(confidence)
+        
+        return results
+    
+    def check_floor_joints(self, image_path: str) -> Dict[str, Any]:
+        """Check for floor joints/cracks using Gemini Vision AI"""
+        results = {
+            "criterion_id": 3,
             "criterion_name": "الأرضيات بدون فواصل",
             "criterion_name_en": "Seamless Flooring",
             "status": "compliant",
@@ -254,44 +368,107 @@ class InspectionAIEngine:
             "details": {}
         }
         
-        detection = self._detect_objects_in_image(image_path)
+        # Try Gemini Vision first for intelligent analysis
+        prompt = """Analyze this restaurant floor image and check for visible joints, gaps, or grout lines.
+
+Return your analysis in this EXACT JSON format:
+{
+  "floor_type": "ceramic/marble/epoxy/vinyl/other",
+  "has_visible_joints": true/false,
+  "joint_severity": "none/minor/moderate/severe",
+  "description_ar": "وصف تفصيلي بالعربية عن حالة الأرضية",
+  "description_en": "Detailed description in English about floor condition",
+  "compliance_status": "compliant/needs_improvement/non_compliant",
+  "confidence": 0.95
+}
+
+Focus on:
+- Visible tile joints or grout lines between tiles
+- Gaps between flooring materials
+- Cracks or seams in the floor surface
+- Overall floor uniformity and seamlessness
+
+Be STRICT: even minor visible joints or grout lines should be flagged as non-compliant for restaurant hygiene standards.
+Only seamless floors (like epoxy, polished marble with no visible joints) should be marked as compliant."""
+
+        gemini_result = self._detect_with_gemini(image_path, prompt)
         
-        # Check for floor defects
-        defect_keywords = ['crack', 'gap', 'joint', 'seam', 'grout line', 'tile']
-        found_defects = []
-        
-        for label, score in detection["labels"]:
-            if any(keyword in label.lower() for keyword in defect_keywords):
-                found_defects.append((label, score))
-        
-        defect_count = len(found_defects)
-        confidence = 0.85
-        
-        results["details"]["floor"] = {
-            "has_joints": defect_count > 3,
-            "joint_count": defect_count,
-            "confidence": float(confidence),
-            "description": f"تم اكتشاف {defect_count} عيب محتمل" if defect_count > 3 else "الأرضية موحدة",
-            "detected_issues": [name for name, _ in found_defects]
-        }
-        
-        if defect_count > 5:
-            results["status"] = "non_compliant"
-            results["score"] = 50
-        elif defect_count > 3:
-            results["status"] = "needs_improvement"
-            results["score"] = 75
+        if gemini_result and isinstance(gemini_result, dict) and "has_visible_joints" in gemini_result:
+            # Successfully got structured response from Gemini
+            print("[OK] Using Gemini Vision result for floor analysis")
+            
+            confidence = gemini_result.get("confidence", 0.90)
+            has_joints = gemini_result.get("has_visible_joints", False)
+            severity = gemini_result.get("joint_severity", "none")
+            status = gemini_result.get("compliance_status", "compliant")
+            
+            results["details"]["floor"] = {
+                "floor_type": gemini_result.get("floor_type", "unknown"),
+                "has_joints": has_joints,
+                "severity": severity,
+                "confidence": float(confidence),
+                "description": gemini_result.get("description_ar", "تحليل الأرضية"),
+                "description_en": gemini_result.get("description_en", "Floor analysis"),
+                "analysis_method": "gemini_vision"
+            }
+            
+            # Map status from Gemini response
+            if status == "non_compliant" or severity == "severe":
+                results["status"] = "non_compliant"
+                results["score"] = 50
+            elif status == "needs_improvement" or severity == "moderate":
+                results["status"] = "needs_improvement"
+                results["score"] = 70
+            else:
+                results["status"] = "compliant"
+                results["score"] = 95
+            
+            results["confidence"] = float(confidence)
+            
         else:
-            results["status"] = "compliant"
-            results["score"] = 92
+            # Fallback to Google Vision if Gemini fails
+            print("[WARNING] Gemini failed, falling back to Google Vision for floor analysis")
+            
+            detection = self._detect_objects_in_image(image_path)
+            
+            # Check for floor defects using keywords
+            defect_keywords = ['crack', 'gap', 'joint', 'seam', 'grout line', 'tile', 'grout']
+            found_defects = []
+            
+            for label, score in detection["labels"]:
+                if any(keyword in label.lower() for keyword in defect_keywords):
+                    found_defects.append((label, score))
+            
+            defect_count = len(found_defects)
+            confidence = 0.75  # Lower confidence for fallback method
+            
+            results["details"]["floor"] = {
+                "has_joints": defect_count > 2,
+                "joint_count": defect_count,
+                "confidence": float(confidence),
+                "description": f"تم اكتشاف {defect_count} عيب محتمل" if defect_count > 2 else "الأرضية موحدة",
+                "detected_issues": [name for name, _ in found_defects],
+                "analysis_method": "google_vision_fallback"
+            }
+            
+            if defect_count > 4:
+                results["status"] = "non_compliant"
+                results["score"] = 50
+            elif defect_count > 2:
+                results["status"] = "needs_improvement"
+                results["score"] = 70
+            else:
+                results["status"] = "compliant"
+                results["score"] = 90
+            
+            results["confidence"] = float(confidence)
         
-        results["confidence"] = float(confidence)
         return results
     
     def check_lighting(self, image_path: str) -> Dict[str, Any]:
         """Check lighting adequacy using Vision API"""
         results = {
-            "criterion_id": 3,
+            "criterion_id": 4,
             "criterion_name": "كفاية الإضاءة",
             "criterion_name_en": "Lighting Adequacy",
             "status": "compliant",
