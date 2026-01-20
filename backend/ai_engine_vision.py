@@ -441,35 +441,60 @@ If you see ANY indication of tiles or grout lines, mark as "non_compliant" even 
             
             detection = self._detect_objects_in_image(image_path)
             
-            # Check for floor defects using keywords
-            defect_keywords = ['crack', 'gap', 'joint', 'seam', 'grout line', 'tile', 'grout']
-            found_defects = []
+            # ULTRA-STRICT: Expanded keywords to catch ANY tile indication
+            tile_keywords = [
+                # Direct tile/grout indicators
+                'tile', 'tiles', 'tiled', 'ceramic', 'porcelain', 'grout', 'grouted',
+                # Joint/seam indicators
+                'joint', 'joints', 'seam', 'seams', 'gap', 'gaps', 'crack', 'cracks',
+                'grout line', 'grout lines', 'tile pattern', 'tiling',
+                # Floor type indicators (usually tiled)
+                'floor tile', 'ceramic floor', 'tiled floor', 'bathroom tile',
+                'kitchen tile', 'flooring', 'tile flooring',
+                # Pattern indicators
+                'pattern', 'grid', 'square', 'rectangular', 'geometric'
+            ]
+            
+            found_tile_indicators = []
+            
+            # Check both objects and labels
+            for obj_name, score in detection["objects"]:
+                obj_lower = obj_name.lower()
+                if any(keyword in obj_lower for keyword in tile_keywords):
+                    found_tile_indicators.append((obj_name, score, "object"))
+                    print(f"[TILE DETECTED] Object: {obj_name} (score: {score})")
             
             for label, score in detection["labels"]:
-                if any(keyword in label.lower() for keyword in defect_keywords):
-                    found_defects.append((label, score))
+                label_lower = label.lower()
+                if any(keyword in label_lower for keyword in tile_keywords):
+                    if label not in [f[0] for f in found_tile_indicators]:
+                        found_tile_indicators.append((label, score, "label"))
+                        print(f"[TILE DETECTED] Label: {label} (score: {score})")
             
-            defect_count = len(found_defects)
-            confidence = 0.75  # Lower confidence for fallback method
+            tile_count = len(found_tile_indicators)
+            confidence = 0.80  # Higher confidence for improved fallback
+            
+            # BE ULTRA-STRICT: ANY tile indication = non-compliant
+            has_tiles = tile_count > 0
             
             results["details"]["floor"] = {
-                "has_joints": defect_count > 2,
-                "joint_count": defect_count,
+                "has_joints": has_tiles,
+                "has_tile_pattern": has_tiles,
+                "tile_indicator_count": tile_count,
                 "confidence": float(confidence),
-                "description": f"تم اكتشاف {defect_count} عيب محتمل" if defect_count > 2 else "الأرضية موحدة",
-                "detected_issues": [name for name, _ in found_defects],
-                "analysis_method": "google_vision_fallback"
+                "description": f"تم اكتشاف {tile_count} مؤشر للبلاط - غير مستوفي" if has_tiles else "لا توجد مؤشرات للبلاط - الأرضية قد تكون موحدة",
+                "detected_indicators": [f"{name} ({source})" for name, _, source in found_tile_indicators],
+                "analysis_method": "google_vision_fallback_strict"
             }
             
-            if defect_count > 4:
+            
+            # ULTRA-STRICT LOGIC: ANY tile indication = immediate fail
+            if tile_count >= 1:  # ANY tile indicator = non-compliant
                 results["status"] = "non_compliant"
-                results["score"] = 50
-            elif defect_count > 2:
-                results["status"] = "needs_improvement"
-                results["score"] = 70
-            else:
+                results["score"] = 30
+            else:  # 0 indicators = seamless floor
                 results["status"] = "compliant"
-                results["score"] = 90
+                results["score"] = 85  # Lower score for fallback uncertainty
             
             results["confidence"] = float(confidence)
         
@@ -517,13 +542,3 @@ If you see ANY indication of tiles or grout lines, mark as "non_compliant" even 
             "confidence": 0.88,
             "description": f"مستوى الإضاءة جيد ({brightness_percent}%)" if is_adequate else f"مستوى الإضاءة ضعيف ({brightness_percent}%)"
         }
-        
-        if not is_adequate:
-            results["status"] = "non_compliant"
-            results["score"] = 55
-        else:
-            results["status"] = "compliant"
-            results["score"] = 90
-        
-        results["confidence"] = 0.88
-        return results
