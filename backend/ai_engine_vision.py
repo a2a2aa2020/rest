@@ -369,12 +369,13 @@ class InspectionAIEngine:
         }
         
         # Try Gemini Vision first for intelligent analysis
-        prompt = """Analyze this restaurant floor image and check for visible joints, gaps, or grout lines.
+        prompt = """Analyze this restaurant floor image with EXTREME STRICTNESS for hygiene compliance.
 
 Return your analysis in this EXACT JSON format:
 {
-  "floor_type": "ceramic/marble/epoxy/vinyl/other",
+  "floor_type": "ceramic/marble/epoxy/vinyl/porcelain/other",
   "has_visible_joints": true/false,
+  "has_tile_pattern": true/false,
   "joint_severity": "none/minor/moderate/severe",
   "description_ar": "وصف تفصيلي بالعربية عن حالة الأرضية",
   "description_en": "Detailed description in English about floor condition",
@@ -382,14 +383,20 @@ Return your analysis in this EXACT JSON format:
   "confidence": 0.95
 }
 
-Focus on:
-- Visible tile joints or grout lines between tiles
-- Gaps between flooring materials
-- Cracks or seams in the floor surface
-- Overall floor uniformity and seamlessness
+CRITICAL DETECTION POINTS:
+1. **Tile Patterns**: ANY visible square, rectangular, or geometric tile pattern = NON-COMPLIANT
+2. **Grout Lines**: ANY visible lines between tiles (even faint) = NON-COMPLIANT  
+3. **Ceramic/Porcelain Tiles**: Traditional tiled floors with grout = ALWAYS NON-COMPLIANT
+4. **Texture Variation**: Regular patterns suggesting individual tiles = NON-COMPLIANT
 
-Be STRICT: even minor visible joints or grout lines should be flagged as non-compliant for restaurant hygiene standards.
-Only seamless floors (like epoxy, polished marble with no visible joints) should be marked as compliant."""
+COMPLIANT ONLY IF:
+- Completely seamless surface (epoxy, polished concrete, resin)
+- NO visible lines, joints, or grout whatsoever
+- Uniform surface with no tile pattern visible
+- Appears as one continuous surface
+
+BE ULTRA-STRICT: Restaurant hygiene standards require ZERO visible joints or tile patterns.
+If you see ANY indication of tiles or grout lines, mark as "non_compliant" even if minor."""
 
         gemini_result = self._detect_with_gemini(image_path, prompt)
         
@@ -399,12 +406,14 @@ Only seamless floors (like epoxy, polished marble with no visible joints) should
             
             confidence = gemini_result.get("confidence", 0.90)
             has_joints = gemini_result.get("has_visible_joints", False)
+            has_tile_pattern = gemini_result.get("has_tile_pattern", False)
             severity = gemini_result.get("joint_severity", "none")
             status = gemini_result.get("compliance_status", "compliant")
             
             results["details"]["floor"] = {
                 "floor_type": gemini_result.get("floor_type", "unknown"),
                 "has_joints": has_joints,
+                "has_tile_pattern": has_tile_pattern,
                 "severity": severity,
                 "confidence": float(confidence),
                 "description": gemini_result.get("description_ar", "تحليل الأرضية"),
@@ -412,10 +421,11 @@ Only seamless floors (like epoxy, polished marble with no visible joints) should
                 "analysis_method": "gemini_vision"
             }
             
-            # Map status from Gemini response
-            if status == "non_compliant" or severity == "severe":
+            # Map status from Gemini response - BE EXTRA STRICT
+            # ANY tile pattern or joints = non-compliant
+            if status == "non_compliant" or severity == "severe" or has_tile_pattern:
                 results["status"] = "non_compliant"
-                results["score"] = 50
+                results["score"] = 40
             elif status == "needs_improvement" or severity == "moderate":
                 results["status"] = "needs_improvement"
                 results["score"] = 70
@@ -507,13 +517,3 @@ Only seamless floors (like epoxy, polished marble with no visible joints) should
             "confidence": 0.88,
             "description": f"مستوى الإضاءة جيد ({brightness_percent}%)" if is_adequate else f"مستوى الإضاءة ضعيف ({brightness_percent}%)"
         }
-        
-        if not is_adequate:
-            results["status"] = "non_compliant"
-            results["score"] = 55
-        else:
-            results["status"] = "compliant"
-            results["score"] = 90
-        
-        results["confidence"] = 0.88
-        return results
