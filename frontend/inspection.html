@@ -26,7 +26,6 @@
             <div class="step-dot"></div>
             <div class="step-dot"></div>
             <div class="step-dot"></div>
-            <div class="step-dot"></div>
         </div>
 
         <!-- Inspection Form -->
@@ -44,110 +43,92 @@
                 <button type="button" class="btn btn-primary official-btn w-100" onclick="nextStep()">التالي →</button>
             </div>
 
+
             <div id="step2" class="step-content" style="display:none;">
-                <h3 class="text-primary mb-3">الصورة 1: الواجهة الخارجية</h3>
-                <div class="instruction-box">
-                    <div class="instruction-title">💡 إرشادات التصوير:</div>
-                    <ul class="instruction-list">
-                        <li>• صوّر الواجهة الخارجية الكاملة للمطعم</li>
-                        <li>• تأكد من وضوح الإضاءة</li>
-                        <li>• تأكد من ظهور كامل الواجهة</li>
-                    </ul>
-                </div>
-                <button type="button" class="btn btn-primary official-btn w-100 mb-3" onclick="nextStep()">التالي
-                    →</button>
-                <div class="camera-placeholder" onclick="document.getElementById('facadeImage').click()">
-                    <div class="camera-icon">📷</div>
-                    <p>اضغط لالتقاط صورة الواجهة</p>
-                </div>
-                <input type="file" id="facadeImage" accept="image/*" capture="environment" style="display:none;"
-                    onchange="previewImage(this, 'facadePreview')" required>
-                <div id="facadePreview" class="preview-container"></div>
-            </div>
 
-            <div id="step3" class="step-content" style="display:none;">
-                <h3 class="text-primary mb-3">الصورة 2: السقف الداخلي</h3>
-                <div class="instruction-box">
-                    <div class="instruction-title">💡 إرشادات التصوير:</div>
-                    <ul class="instruction-list">
-                        <li>• صوّر السقف من عدة زوايا</li>
-                        <li>• تأكد من وضوح السقف بالكامل</li>
-                        <li>• ابحث عن أي أسلاك أو أنابيب ظاهرة</li>
-                    </ul>
+                <div id="step3" class="step-content" style="display:none;">
+                    <h3 class="text-primary mb-3">الصورة 1: السقف الداخلي</h3>
+                    <div class="instruction-box">
+                        <div class="instruction-title">💡 إرشادات التصوير:</div>
+                        <ul class="instruction-list">
+                            <li>• صوّر السقف من عدة زوايا</li>
+                            <li>• تأكد من وضوح السقف بالكامل</li>
+                            <li>• ابحث عن أي أسلاك أو أنابيب ظاهرة</li>
+                        </ul>
+                    </div>
+                    <button type="button" class="btn btn-primary official-btn w-100 mb-3" onclick="nextStep()">التالي
+                        →</button>
+                    <div class="camera-placeholder" onclick="document.getElementById('ceilingImage').click()">
+                        <div class="camera-icon">📷</div>
+                        <p>اضغط لالتقاط صورة السقف</p>
+                    </div>
+                    <input type="file" id="ceilingImage" accept="image/*" capture="environment" style="display:none;"
+                        onchange="previewImage(this, 'ceilingPreview')" required>
+                    <div id="ceilingPreview" class="preview-container"></div>
                 </div>
-                <button type="button" class="btn btn-primary official-btn w-100 mb-3" onclick="nextStep()">التالي
-                    →</button>
-                <div class="camera-placeholder" onclick="document.getElementById('ceilingImage').click()">
-                    <div class="camera-icon">📷</div>
-                    <p>اضغط لالتقاط صورة السقف</p>
-                </div>
-                <input type="file" id="ceilingImage" accept="image/*" capture="environment" style="display:none;"
-                    onchange="previewImage(this, 'ceilingPreview')" required>
-                <div id="ceilingPreview" class="preview-container"></div>
-            </div>
 
-            <div id="step4" class="step-content" style="display:none;">
-                <h3 class="text-primary mb-3">الصورة 3: الجدران الداخلية</h3>
-                <div class="instruction-box">
-                    <div class="instruction-title">💡 إرشادات التصوير:</div>
-                    <ul class="instruction-list">
-                        <li>• صوّر الجدران من زوايا مختلفة</li>
-                        <li>• افحص وجود أسلاك أو أنابيب ظاهرة</li>
-                        <li>• تأكد من وضوح الصورة</li>
-                    </ul>
+                <div id="step4" class="step-content" style="display:none;">
+                    <h3 class="text-primary mb-3">الصورة 2: الجدران الداخلية</h3>
+                    <div class="instruction-box">
+                        <div class="instruction-title">💡 إرشادات التصوير:</div>
+                        <ul class="instruction-list">
+                            <li>• صوّر الجدران من زوايا مختلفة</li>
+                            <li>• افحص وجود أسلاك أو أنابيب ظاهرة</li>
+                            <li>• تأكد من وضوح الصورة</li>
+                        </ul>
+                    </div>
+                    <button type="button" class="btn btn-primary official-btn w-100 mb-3" onclick="nextStep()">التالي
+                        →</button>
+                    <div class="camera-placeholder" onclick="document.getElementById('wallImage').click()">
+                        <div class="camera-icon">📷</div>
+                        <p>اضغط لالتقاط صورة الجدران</p>
+                    </div>
+                    <input type="file" id="wallImage" accept="image/*" capture="environment" style="display:none;"
+                        onchange="previewImage(this, 'wallPreview')" required>
+                    <div id="wallPreview" class="preview-container"></div>
                 </div>
-                <button type="button" class="btn btn-primary official-btn w-100 mb-3" onclick="nextStep()">التالي
-                    →</button>
-                <div class="camera-placeholder" onclick="document.getElementById('wallImage').click()">
-                    <div class="camera-icon">📷</div>
-                    <p>اضغط لالتقاط صورة الجدران</p>
-                </div>
-                <input type="file" id="wallImage" accept="image/*" capture="environment" style="display:none;"
-                    onchange="previewImage(this, 'wallPreview')" required>
-                <div id="wallPreview" class="preview-container"></div>
-            </div>
 
-            <div id="step5" class="step-content" style="display:none;">
-                <h3 class="text-primary mb-3">الصورة 4: الأرضيات</h3>
-                <div class="instruction-box">
-                    <div class="instruction-title">💡 إرشادات التصوير:</div>
-                    <ul class="instruction-list">
-                        <li>• صوّر الأرضية في منطقة تحضير الطعام</li>
-                        <li>• ابحث عن فواصل أو شقوق</li>
-                        <li>• تأكد من الإضاءة الجيدة</li>
-                    </ul>
+                <div id="step5" class="step-content" style="display:none;">
+                    <h3 class="text-primary mb-3">الصورة 3: الأرضيات</h3>
+                    <div class="instruction-box">
+                        <div class="instruction-title">💡 إرشادات التصوير:</div>
+                        <ul class="instruction-list">
+                            <li>• صوّر الأرضية في منطقة تحضير الطعام</li>
+                            <li>• ابحث عن فواصل أو شقوق</li>
+                            <li>• تأكد من الإضاءة الجيدة</li>
+                        </ul>
+                    </div>
+                    <button type="button" class="btn btn-primary official-btn w-100 mb-3" onclick="nextStep()">التالي
+                        →</button>
+                    <div class="camera-placeholder" onclick="document.getElementById('floorImage').click()">
+                        <div class="camera-icon">📷</div>
+                        <p>اضغط لالتقاط صورة الأرضية</p>
+                    </div>
+                    <input type="file" id="floorImage" accept="image/*" capture="environment" style="display:none;"
+                        onchange="previewImage(this, 'floorPreview')" required>
+                    <div id="floorPreview" class="preview-container"></div>
                 </div>
-                <button type="button" class="btn btn-primary official-btn w-100 mb-3" onclick="nextStep()">التالي
-                    →</button>
-                <div class="camera-placeholder" onclick="document.getElementById('floorImage').click()">
-                    <div class="camera-icon">📷</div>
-                    <p>اضغط لالتقاط صورة الأرضية</p>
-                </div>
-                <input type="file" id="floorImage" accept="image/*" capture="environment" style="display:none;"
-                    onchange="previewImage(this, 'floorPreview')" required>
-                <div id="floorPreview" class="preview-container"></div>
-            </div>
 
-            <div id="step6" class="step-content" style="display:none;">
-                <h3 class="text-primary mb-3">الصورة 5: منطقة التحضير مع الإضاءة</h3>
-                <div class="instruction-box">
-                    <div class="instruction-title">💡 إرشادات التصوير:</div>
-                    <ul class="instruction-list">
-                        <li>• شغّل جميع الإضاءة</li>
-                        <li>• صوّر منطقة التحضير بالكامل</li>
-                        <li>• تأكد من وضوح وحدات الإضاءة</li>
-                    </ul>
+                <div id="step6" class="step-content" style="display:none;">
+                    <h3 class="text-primary mb-3">الصورة 4: منطقة تحضير الطعام مع الإضاءة</h3>
+                    <div class="instruction-box">
+                        <div class="instruction-title">💡 إرشادات التصوير:</div>
+                        <ul class="instruction-list">
+                            <li>• شغّل جميع الإضاءة</li>
+                            <li>• صوّر منطقة التحضير بالكامل</li>
+                            <li>• تأكد من وضوح وحدات الإضاءة</li>
+                        </ul>
+                    </div>
+                    <div class="camera-placeholder" onclick="document.getElementById('lightingImage').click()">
+                        <div class="camera-icon">📷</div>
+                        <p>اضغط لالتقاط صورة الإضاءة</p>
+                    </div>
+                    <input type="file" id="lightingImage" accept="image/*" capture="environment" style="display:none;"
+                        onchange="previewImage(this, 'lightingPreview')" required>
+                    <div id="lightingPreview" class="preview-container"></div>
+                    <button type="button" class="btn btn-success official-btn w-100" onclick="submitInspection()">إرسال
+                        للفحص ✓</button>
                 </div>
-                <div class="camera-placeholder" onclick="document.getElementById('lightingImage').click()">
-                    <div class="camera-icon">📷</div>
-                    <p>اضغط لالتقاط صورة الإضاءة</p>
-                </div>
-                <input type="file" id="lightingImage" accept="image/*" capture="environment" style="display:none;"
-                    onchange="previewImage(this, 'lightingPreview')" required>
-                <div id="lightingPreview" class="preview-container"></div>
-                <button type="button" class="btn btn-success official-btn w-100" onclick="submitInspection()">إرسال
-                    للفحص ✓</button>
-            </div>
         </form>
 
         <!-- Loading Modal -->
