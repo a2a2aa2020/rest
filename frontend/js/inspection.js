@@ -6,14 +6,14 @@ window.addEventListener('DOMContentLoaded', () => {
 });
 
 let currentStep = 1;
-const totalSteps = 6;
+const totalSteps = 5;
 
 // Step to image ID mapping (without facade)
 const stepImageMap = {
-    3: 'ceilingImage',
-    4: 'wallImage',
-    5: 'floorImage',
-    6: 'lightingImage'
+    2: 'ceilingImage',
+    3: 'wallImage',
+    4: 'floorImage',
+    5: 'lightingImage'
 };
 
 function nextStep() {
@@ -114,7 +114,7 @@ async function submitInspection() {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 300000); // 300 seconds (5 minutes) timeout
 
-        const response = await fetch('https://restaurant-inspection-api.onrender.com/api/inspect', {
+        const response = await fetch('https://restaurant-inspection-api.onrender.com/api/analyze', {
             method: 'POST',
             body: formData,
             signal: controller.signal
