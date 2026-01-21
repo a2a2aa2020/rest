@@ -152,7 +152,7 @@ class InspectionAIEngine:
             
             # Generate content with the image inline
             response = self.gemini_client.models.generate_content(
-                model='gemini-2.0-flash-exp',  # Updated to compatible model for v1beta
+                model='gemini-1.5-pro',  # Trying 1.5 Pro
                 contents=[
                     prompt,
                     {
@@ -357,188 +357,100 @@ class InspectionAIEngine:
         return results
     
     def check_floor_joints(self, image_path: str) -> Dict[str, Any]:
-        """Check for floor joints/cracks using Gemini Vision AI"""
+        """Check for curved wall-floor junctions using Gemini Vision (with Google Vision fallback)"""
         results = {
             "criterion_id": 3,
-            "criterion_name": "الأرضيات بدون فواصل",
-            "criterion_name_en": "Seamless Flooring",
+            "criterion_name": "وصلات الأرضية المنحنية",
+            "criterion_name_en": "Curved Floor Junctions",
             "status": "compliant",
             "score": 0,
             "confidence": 0,
-            "details": {}
+            "details": {},
+            "ai_used": "gemini"
         }
         
-        # Try Gemini Vision first for intelligent analysis
-        prompt = """Analyze this restaurant floor image with EXTREME STRICTNESS for hygiene compliance.
+        # Try Gemini Vision first (much better for this task)
+        gemini_result = None
+        if self.use_gemini:
+            prompt = """قم بتحليل هذه الصورة للأرضية ووصلة الجدار-الأرضية بعناية شديدة:
 
-Return your analysis in this EXACT JSON format:
+المعايير المطلوبة للامتثال:
+✅ يجب وجود وصلة منحنية (Curved/Coved Junction) بين الجدار والأرضية - انحناء سلس بدون زوايا حادة
+✅ يجب أن تكون الأرضية من مادة موحدة (Seamless) مثل الإيبوكسي أو البولي يوريثان
+✅ لا يجب وجود بلاط أو فواصل بين البلاطات
+
+معايير الرفض (Non-Compliant):
+❌ أرضية مبلطة مع فواصل (Tiled floor with grout lines)
+❌ وصلة مستقيمة بزاوية 90 درجة (Straight baseboard)
+❌ وجود شقوق أو فجوات في الأرضية
+❌ زوايا حادة بين الجدار والأرضية
+
+قم بفحص الصورة بعناية وأجب بصيغة JSON فقط:
 {
-  "floor_type": "ceramic/marble/epoxy/vinyl/porcelain/other",
-  "has_visible_joints": true/false,
-  "has_tile_pattern": true/false,
-  "joint_severity": "none/minor/moderate/severe",
-  "description_ar": "وصف تفصيلي بالعربية عن حالة الأرضية",
-  "description_en": "Detailed description in English about floor condition",
-  "compliance_status": "compliant/needs_improvement/non_compliant",
-  "confidence": 0.95
-}
-
-CRITICAL DETECTION POINTS:
-1. **Tile Patterns**: ANY visible square, rectangular, or geometric tile pattern = NON-COMPLIANT
-2. **Grout Lines**: ANY visible lines between tiles (even faint) = NON-COMPLIANT  
-3. **Ceramic/Porcelain Tiles**: Traditional tiled floors with grout = ALWAYS NON-COMPLIANT
-4. **Texture Variation**: Regular patterns suggesting individual tiles = NON-COMPLIANT
-
-COMPLIANT ONLY IF:
-- Completely seamless surface (epoxy, polished concrete, resin)
-- NO visible lines, joints, or grout whatsoever
-- Uniform surface with no tile pattern visible
-- Appears as one continuous surface
-
-BE ULTRA-STRICT: Restaurant hygiene standards require ZERO visible joints or tile patterns.
-If you see ANY indication of tiles or grout lines, mark as "non_compliant" even if minor."""
-
-        gemini_result = self._detect_with_gemini(image_path, prompt)
-        
-        if gemini_result and isinstance(gemini_result, dict) and "has_visible_joints" in gemini_result:
-            # Successfully got structured response from Gemini
-            print("[OK] Using Gemini Vision result for floor analysis")
+  "has_curved_junction": true أو false (هل يوجد وصلة منحنية؟),
+  "is_tiled_floor": true أو false (هل الأرضية مبلطة؟),
+  "has_grout_lines": true أو false (هل توجد فواصل بين البلاطات؟),
+  "junction_type": "curved" أو "straight" أو "none" (نوع الوصلة),
+  "floor_type": "seamless" أو "tiled" أو "other" (نوع الأرضية),
+  "is_compliant": true أو false (هل مطابق للمعايير؟),
+  "confidence": نسبة الثقة من 0 إلى 100,
+  "description": "وصف تفصيلي بالعربية عن حالة الأرضية والوصلة"
+}"""
             
-            confidence = gemini_result.get("confidence", 0.90)
-            has_joints = gemini_result.get("has_visible_joints", False)
-            has_tile_pattern = gemini_result.get("has_tile_pattern", False)
-            severity = gemini_result.get("joint_severity", "none")
-            status = gemini_result.get("compliance_status", "compliant")
+            gemini_result = self._detect_with_gemini(image_path, prompt)
+        
+        # Use Gemini results if available
+        if gemini_result and isinstance(gemini_result, dict) and "is_compliant" in gemini_result:
+            print(f"[OK] Using Gemini Vision results for floor junction analysis")
+            
+            has_curved = gemini_result.get("has_curved_junction", False)
+            is_tiled = gemini_result.get("is_tiled_floor", False)
+            has_grout = gemini_result.get("has_grout_lines", False)
+            junction_type = gemini_result.get("junction_type", "unknown")
+            floor_type = gemini_result.get("floor_type", "unknown")
+            is_compliant = gemini_result.get("is_compliant", False)
+            confidence = gemini_result.get("confidence", 90) / 100
+            description = gemini_result.get("description", "تم التحليل بواسطة Gemini Vision")
             
             results["details"]["floor"] = {
-                "floor_type": gemini_result.get("floor_type", "unknown"),
-                "has_joints": has_joints,
-                "has_tile_pattern": has_tile_pattern,
-                "severity": severity,
+                "has_curved_junction": has_curved,
+                "is_tiled_floor": is_tiled,
+                "has_grout_lines": has_grout,
+                "junction_type": junction_type,
+                "floor_type": floor_type,
                 "confidence": float(confidence),
-                "description": gemini_result.get("description_ar", "تحليل الأرضية"),
-                "description_en": gemini_result.get("description_en", "Floor analysis"),
-                "analysis_method": "gemini_vision"
+                "description": description
             }
             
-            # Map status from Gemini response - BE EXTRA STRICT
-            # ANY tile pattern or joints = non-compliant
-            if status == "non_compliant" or severity == "severe" or has_tile_pattern:
-                results["status"] = "non_compliant"
-                results["score"] = 40
-            elif status == "needs_improvement" or severity == "moderate":
-                results["status"] = "needs_improvement"
-                results["score"] = 70
-            else:
+            # Determine compliance based on Gemini's assessment
+            if is_compliant and has_curved and not is_tiled:
                 results["status"] = "compliant"
                 results["score"] = 95
+            elif is_tiled or has_grout:
+                results["status"] = "non_compliant"
+                results["score"] = 30
+                results["details"]["floor"]["violation_reason"] = "أرضية مبلطة مع فواصل - غير مطابقة للمعايير الصحية"
+            elif junction_type == "straight":
+                results["status"] = "non_compliant"
+                results["score"] = 40
+                results["details"]["floor"]["violation_reason"] = "وصلة مستقيمة بزاوية 90 درجة - يجب أن تكون منحنية"
+            else:
+                results["status"] = "non_compliant"
+                results["score"] = 50
+                results["details"]["floor"]["violation_reason"] = "لا تتوفر المعايير المطلوبة للوصلة المنحنية"
             
             results["confidence"] = float(confidence)
+            results["ai_used"] = "gemini"
             
         else:
-            # Fallback to Google Vision if Gemini fails
-            print("[WARNING] Gemini failed, falling back to Google Vision for floor analysis")
+            # Fallback to Google Vision (less accurate for this task)
+            print(f"[WARNING] Falling back to Google Vision for floor junction analysis")
+            results["ai_used"] = "google_vision"
             
             detection = self._detect_objects_in_image(image_path)
             
-            # ULTRA-STRICT: Expanded keywords to catch ANY tile indication
-            tile_keywords = [
-                # Direct tile/grout indicators
-                'tile', 'tiles', 'tiled', 'ceramic', 'porcelain', 'grout', 'grouted',
-                # Joint/seam indicators
-                'joint', 'joints', 'seam', 'seams', 'gap', 'gaps', 'crack', 'cracks',
-                'grout line', 'grout lines', 'tile pattern', 'tiling',
-                # Floor type indicators (usually tiled)
-                'floor tile', 'ceramic floor', 'tiled floor', 'bathroom tile',
-                'kitchen tile', 'flooring', 'tile flooring',
-                # Pattern indicators
-                'pattern', 'grid', 'square', 'rectangular', 'geometric'
-            ]
+            # Check for floor defects with STRICT criteria
+            tile_keywords = ['tile', 'tiled', 'ceramic', 'grout', 'grout line']
+            defect_keywords = ['crack', 'gap', 'joint', 'seam']
             
-            found_tile_indicators = []
-            
-            # Check both objects and labels
-            for obj_name, score in detection["objects"]:
-                obj_lower = obj_name.lower()
-                if any(keyword in obj_lower for keyword in tile_keywords):
-                    found_tile_indicators.append((obj_name, score, "object"))
-                    print(f"[TILE DETECTED] Object: {obj_name} (score: {score})")
-            
-            for label, score in detection["labels"]:
-                label_lower = label.lower()
-                if any(keyword in label_lower for keyword in tile_keywords):
-                    if label not in [f[0] for f in found_tile_indicators]:
-                        found_tile_indicators.append((label, score, "label"))
-                        print(f"[TILE DETECTED] Label: {label} (score: {score})")
-            
-            tile_count = len(found_tile_indicators)
-            confidence = 0.80  # Higher confidence for improved fallback
-            
-            # BE ULTRA-STRICT: ANY tile indication = non-compliant
-            has_tiles = tile_count > 0
-            
-            results["details"]["floor"] = {
-                "has_joints": has_tiles,
-                "has_tile_pattern": has_tiles,
-                "tile_indicator_count": tile_count,
-                "confidence": float(confidence),
-                "description": f"تم اكتشاف {tile_count} مؤشر للبلاط - غير مستوفي" if has_tiles else "لا توجد مؤشرات للبلاط - الأرضية قد تكون موحدة",
-                "detected_indicators": [f"{name} ({source})" for name, _, source in found_tile_indicators],
-                "analysis_method": "google_vision_fallback_strict"
-            }
-            
-            
-            # ULTRA-STRICT LOGIC: ANY tile indication = immediate fail
-            if tile_count >= 1:  # ANY tile indicator = non-compliant
-                results["status"] = "non_compliant"
-                results["score"] = 30
-            else:  # 0 indicators = seamless floor
-                results["status"] = "compliant"
-                results["score"] = 85  # Lower score for fallback uncertainty
-            
-            results["confidence"] = float(confidence)
-        
-        return results
-    
-    def check_lighting(self, image_path: str) -> Dict[str, Any]:
-        """Check lighting adequacy using Vision API"""
-        results = {
-            "criterion_id": 4,
-            "criterion_name": "كفاية الإضاءة",
-            "criterion_name_en": "Lighting Adequacy",
-            "status": "compliant",
-            "score": 0,
-            "confidence": 0,
-            "details": {}
-        }
-        
-        detection = self._detect_objects_in_image(image_path)
-        
-        # Analyze image properties for brightness
-        try:
-            if detection["properties"] and detection["properties"].dominant_colors:
-                colors = detection["properties"].dominant_colors.colors
-                # Calculate average brightness from dominant colors
-                avg_brightness = sum([c.pixel_fraction * (c.color.red + c.color.green + c.color.blue) / 3 
-                                    for c in colors[:3]]) / sum([c.pixel_fraction for c in colors[:3]])
-                
-                brightness_percent = int((avg_brightness / 255) * 100)
-                is_adequate = avg_brightness > 100
-            else:
-                # Fallback to label detection
-                lighting_labels = [label for label, score in detection["labels"] 
-                                 if 'light' in label.lower() or 'bright' in label.lower()]
-                is_adequate = len(lighting_labels) > 0
-                brightness_percent = 75
-                avg_brightness = 150
-        except:
-            is_adequate = True
-            brightness_percent = 75
-            avg_brightness = 150
-        
-        results["details"]["lighting"] = {
-            "brightness_level": float(avg_brightness),
-            "is_adequate": is_adequate,
-            "confidence": 0.88,
-            "description": f"مستوى الإضاءة جيد ({brightness_percent}%)" if is_adequate else f"مستوى الإضاءة ضعيف ({brightness_percent}%)"
-        }
+            found_tiles = []
