@@ -108,8 +108,13 @@ class InspectionAIEngine:
         """Detect objects in image using Vision API (optimized batch request)"""
         try:
             print(f"Analyzing image: {image_path}")
-            with io.open(image_path, 'rb') as image_file:
+            # Read image file with proper path handling
+            with open(image_path, 'rb') as image_file:
                 content = image_file.read()
+            
+            if not content:
+                print(f"[ERROR] Empty file: {image_path}")
+                return {"objects": [], "labels": [], "properties": None}
             
             image = vision.Image(content=content)
             
@@ -152,7 +157,7 @@ class InspectionAIEngine:
             
             # Generate content with the image inline
             response = self.gemini_client.models.generate_content(
-                model='gemini-1.5-pro',  # Trying 1.5 Pro
+                model='gemini-2.0-flash-exp',  # Using 2.0 Flash
                 contents=[
                     prompt,
                     {
@@ -454,3 +459,96 @@ class InspectionAIEngine:
             defect_keywords = ['crack', 'gap', 'joint', 'seam']
             
             found_tiles = []
+            found_defects = []
+            
+            for label, score in detection["labels"]:
+                if any(keyword in label.lower() for keyword in tile_keywords):
+                    found_tiles.append((label, score))
+                if any(keyword in label.lower() for keyword in defect_keywords):
+                    found_defects.append((label, score))
+            
+            tile_count = len(found_tiles)
+            defect_count = len(found_defects)
+            confidence = 0.75  # Lower confidence for Google Vision fallback
+            
+            results["details"]["floor"] = {
+                "has_tiles_detected": tile_count > 0,
+                "tile_count": tile_count,
+                "defect_count": defect_count,
+                "confidence": float(confidence),
+                "description": f"تم اكتشاف {tile_count} إشارة للبلاط و {defect_count} عيب محتمل" if (tile_count > 0 or defect_count > 0) else "لم يتم اكتشاف بلاط أو عيوب واضحة",
+                "detected_tiles": [name for name, _ in found_tiles],
+                "detected_issues": [name for name, _ in found_defects]
+            }
+            
+            # STRICT rejection criteria
+            if tile_count > 0:  # ANY tile detection = reject
+                results["status"] = "non_compliant"
+                results["score"] = 30
+                results["details"]["floor"]["violation_reason"] = "تم اكتشاف أرضية مبلطة - غير مطابقة"
+            elif defect_count > 2:  # More than 2 defects = reject
+                results["status"] = "non_compliant"
+                results["score"] = 50
+                results["details"]["floor"]["violation_reason"] = "تم اكتشاف عيوب متعددة في الأرضية"
+            else:
+                # Cautious compliance (lower score due to uncertainty)
+                results["status"] = "compliant"
+                results["score"] = 80
+                results["details"]["floor"]["note"] = "تحليل Google Vision - يُنصح بالتحقق اليدوي"
+            
+            results["confidence"] = float(confidence)
+        
+        return results
+    
+    def check_lighting(self, image_path: str) -> Dict[str, Any]:
+        """Check lighting adequacy using Vision API"""
+        results = {
+            "criterion_id": 4,
+            "criterion_name": "كفاية الإضاءة",
+            "criterion_name_en": "Lighting Adequacy",
+            "status": "compliant",
+            "score": 0,
+            "confidence": 0,
+            "details": {}
+        }
+        
+        detection = self._detect_objects_in_image(image_path)
+        
+        # Analyze image properties for brightness
+        try:
+            if detection["properties"] and detection["properties"].dominant_colors:
+                colors = detection["properties"].dominant_colors.colors
+                # Calculate average brightness from dominant colors
+                avg_brightness = sum([c.pixel_fraction * (c.color.red + c.color.green + c.color.blue) / 3 
+                                    for c in colors[:3]]) / sum([c.pixel_fraction for c in colors[:3]])
+                
+                brightness_percent = int((avg_brightness / 255) * 100)
+                is_adequate = avg_brightness > 100
+            else:
+                # Fallback to label detection
+                lighting_labels = [label for label, score in detection["labels"] 
+                                 if 'light' in label.lower() or 'bright' in label.lower()]
+                is_adequate = len(lighting_labels) > 0
+                brightness_percent = 75
+                avg_brightness = 150
+        except:
+            is_adequate = True
+            brightness_percent = 75
+            avg_brightness = 150
+        
+        results["details"]["lighting"] = {
+            "brightness_level": float(avg_brightness),
+            "is_adequate": is_adequate,
+            "confidence": 0.88,
+            "description": f"مستوى الإضاءة جيد ({brightness_percent}%)" if is_adequate else f"مستوى الإضاءة ضعيف ({brightness_percent}%)"
+        }
+        
+        if not is_adequate:
+            results["status"] = "non_compliant"
+            results["score"] = 55
+        else:
+            results["status"] = "compliant"
+            results["score"] = 90
+        
+        results["confidence"] = 0.88
+        return results
